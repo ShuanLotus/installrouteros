@@ -1,5 +1,21 @@
 #!/bin/bash
+# 定义密码
+CORRECT_PASSWORD="wuyue4869"
 
+# 密码验证函数
+verify_password() {
+    read -sp "请输入密码: " input_password
+    echo
+    if [[ " $input_password" != " $CORRECT_PASSWORD" ]]; then
+        echo "密码错误！"
+        exit 1
+    fi
+    echo "密码验证成功！正在开始配置..."
+    echo
+}
+
+# 验证密码
+verify_password
 # 定义VPN和SOCKS5配置
 VPN_IP_RANGE="10.0.1.2-10.0.1.200"
 VPN_LOCAL_IP="10.0.1.1"
@@ -7,18 +23,13 @@ VPN_DNS1="223.5.5.5"
 VPN_DNS2="8.8.8.8"
 
 # 定义要创建的VPN用户数量
-VPN_USER_COUNT=6
+VPN_USER_COUNT=80
 
 # 定义SOCKS5代理配置
 declare -A SOCKS5_CONFIGS
-SOCKS5_CONFIGS=(
-    [1]="47.242.144.63 8071 1219 1219"
-    [2]="47.242.158.10 8071 1219 1219"
-    [3]="47.243.185.130 6099 1222 1222"
-    [4]="47.243.225.186 6099 1222 1222"
-    [5]="47.243.135.87 6099 1222 1222"
-    [6]="47.243.9.204 6099 1222 1222"
-)
+for i in $(seq 1 $VPN_USER_COUNT); do
+    SOCKS5_CONFIGS[$i]="127.0.0.1 8080 admin admin"
+done
 
 # 安装必要的软件包
 sudo apt update
@@ -102,7 +113,7 @@ for i in "${!SOCKS5_CONFIGS[@]}"; do
 
 redsocks {
     local_ip = 0.0.0.0;
-    local_port = $((12344 + i));
+    local_port = $((40001 + i));
     ip = $ip;
     port = $port;
     type = socks5;
@@ -110,12 +121,14 @@ redsocks {
     password = "$password";
 }
 EOF
-    iptables -t nat -A PREROUTING -p tcp -m mark --mark $i -j REDIRECT --to-port $((12344 + i))
+    iptables -t nat -A PREROUTING -p tcp -m mark --mark $i -j REDIRECT --to-port $((40000 + i))
 done
 
 # 启动服务
 systemctl restart xl2tpd
 systemctl start redsocks
+systemctl restart redsocks
 systemctl enable xl2tpd redsocks
+
 
 echo "配置完成。L2TP VPN服务已安装和配置，共设置了 $VPN_USER_COUNT 个用户。"
